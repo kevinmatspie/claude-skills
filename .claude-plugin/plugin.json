@@ -1,0 +1,9 @@
+{
+  "name": "spie-claude-skills",
+  "version": "0.1.0",
+  "description": "SPIE-internal Claude Code skills: mobile app release notes and SPIE CRM lookups via spie-cli.",
+  "author": { "name": "Kevin Mills", "email": "kevinm@spie.org" },
+  "homepage": "https://github.com/kevinmatspie/claude-skills",
+  "repository": "https://github.com/kevinmatspie/claude-skills",
+  "keywords": ["spie", "release-notes", "crm"]
+}
