@@ -24,7 +24,7 @@ digraph release_notes {
     "Consolidate into descriptions" [shape=box];
     "Draft release notes" [shape=box];
     "Show user for review" [shape=diamond];
-    "Find existing Confluence draft" [shape=box];
+    "Ask user for draft page ID/URL" [shape=box];
     "Update Confluence page" [shape=box];
 
     "User provides fix version" -> "Query Jira for issues";
@@ -32,9 +32,9 @@ digraph release_notes {
     "Categorize by type" -> "Consolidate into descriptions";
     "Consolidate into descriptions" -> "Draft release notes";
     "Draft release notes" -> "Show user for review";
-    "Show user for review" -> "Find existing Confluence draft" [label="approved"];
+    "Show user for review" -> "Ask user for draft page ID/URL" [label="approved"];
     "Show user for review" -> "Draft release notes" [label="revisions needed"];
-    "Find existing Confluence draft" -> "Update Confluence page";
+    "Ask user for draft page ID/URL" -> "Update Confluence page";
 }
 ```
 
@@ -121,20 +121,15 @@ Mobile Task version: TBD
 
 **Workflow:** User creates the page from the template first, then this skill updates it with content.
 
-1. **Find the draft page** - Search descendants of parent page ID 2967371785 for pages matching release version
-   - Filter by `status: "draft"` first (user typically creates drafts before release)
-   - Match version number in title (e.g., "Release 26.02" matches version "26.02")
-   - If multiple matches, prefer the most recently created draft
-2. **Confirm with user** - Show the page title and ID found, ask user to confirm before updating
-3. **Fetch existing page in ADF format** - Use `getConfluencePage` with `contentFormat: "adf"` to preserve widgets/macros
+1. **Ask the user for the draft page ID or URL.** Draft pages (status=draft) are not returned by `searchConfluenceUsingCql` or the default descendants listing — those tools only surface `status=current`. Asking is faster and more reliable than searching. Prompt the user for the edit URL (e.g., `https://.../pages/edit-v2/<pageId>?draftShareId=...`) or the numeric page ID. Extract the page ID from the URL path if given a URL. If the user says the draft doesn't exist yet, ask them to create it from the template and share the link.
+2. **Fetch existing page in ADF format** - Use `getConfluencePage` with `contentFormat: "adf"` to confirm it exists and preserve widgets/macros
+3. **Show draft release notes for user approval** (if not already done in Step 4)
 4. **Build new ADF content** - Construct panels with content, add Jira widget at end
-5. **Update the page** - Use `updateConfluencePage` with `contentFormat: "adf"`
+5. **Update the page** - Use `updateConfluencePage` with `contentFormat: "adf"` and `status: "draft"` to keep it as a draft until the user publishes
 
 **Configuration:** Read Atlassian settings from `config.local.md` in this skill directory.
 
-**Title format:** `YYYY-MM-DD: Release XX.XX` or `YYYY-MM-DD: Release XX.XX.X` for minor releases
-
-**Important:** Ask user to confirm the page exists before attempting to update. If no page exists, ask them to create one from the template first.
+**Title format:** `YYYY-MM-DD: Release XX.XX` or `YYYY-MM-DD: Release XX.XX.X` for minor releases. The template page usually already has the correct title — pass it through unchanged unless the user asks to change it.
 
 ## ADF Panel Structure
 
@@ -207,4 +202,5 @@ Replace `<version>` with the actual fix version (e.g., "26.01"). URL-encode the 
 | No personality | Add occasional humor matching existing style |
 | Wrong section | Bugs go in Improvements, not their own section |
 | Missing CVE check | Always check descriptions for CVE mentions |
-| Creating duplicate page | Check for existing draft first |
+| Creating duplicate page | Ask the user for the draft page ID/URL before doing anything else |
+| Searching for the draft | Don't. `searchConfluenceUsingCql` and descendants listing don't return `status=draft` pages. Ask the user instead. |

@@ -9,7 +9,7 @@
       "name": "spie-claude-skills",
       "source": "./",
       "description": "SPIE-internal Claude Code skills: mobile app release notes and SPIE CRM lookups via spie-cli.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }
