@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# cop-stop — kill the Copilot tmux session and clean up output files.
+#
+# Env:
+#   COP_TMUX_SESSION  tmux session name (default: cop)
+
+set -euo pipefail
+
+SESSION="${COP_TMUX_SESSION:-cop}"
+
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  tmux kill-session -t "$SESSION"
+  echo "killed session '$SESSION'"
+else
+  echo "session '$SESSION' not running"
+fi
+
+# Clean up stale output files older than 1 day.
+find /tmp -maxdepth 1 -name 'cop-out-*.md' -mtime +1 -delete 2>/dev/null || true

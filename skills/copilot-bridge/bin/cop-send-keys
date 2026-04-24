@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# cop-send-keys — escape hatch for sending raw keys to the Copilot tmux session.
+#
+# Use when Copilot's TUI shows an unexpected confirmation prompt or interactive
+# state that cop-nudge can't address. Thin wrapper around `tmux send-keys`.
+#
+# Usage:
+#   cop-send-keys Enter                  # press Enter
+#   cop-send-keys Down Down Enter        # navigate a menu and confirm
+#   cop-send-keys C-c                    # cancel current operation
+#   cop-send-keys Escape                 # dismiss a dialog
+#
+# Env:
+#   COP_SESSION  tmux session name (default: cop)
+
+set -euo pipefail
+
+SESSION="${COP_SESSION:-cop}"
+
+if [ $# -lt 1 ]; then
+  echo "usage: cop-send-keys <key> [<key> ...]" >&2
+  echo "examples: Enter | Down Down Enter | C-c | Escape" >&2
+  exit 1
+fi
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "error: session '$SESSION' not running" >&2
+  exit 1
+fi
+
+tmux send-keys -t "$SESSION" "$@"

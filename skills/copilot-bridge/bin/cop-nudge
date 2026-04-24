@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# cop-nudge — send a prompt to the Copilot tmux session.
+#
+# Usage:
+#   cop-nudge "your prompt here"
+#   echo "your prompt" | cop-nudge
+#   cop-nudge --wait [--timeout N] "your prompt"   # nudge + watch in one call
+#
+# Without --wait: prints a unique request ID. Use that ID with cop-watch to
+# collect the result.
+# With --wait: blocks until completion and prints the result directly.
+#
+# The prompt is augmented to instruct Copilot to write its final answer to
+# /tmp/cop-out-<id>.md and print a sentinel when done.
+#
+# Env:
+#   COP_SESSION       tmux session name (default: cop)
+#   COP_READY_TIMEOUT seconds to wait for TUI readiness (default: 30)
+
+set -euo pipefail
+
+SESSION="${COP_SESSION:-cop}"
+READY_TIMEOUT="${COP_READY_TIMEOUT:-30}"
+WAIT=0
+WATCH_TIMEOUT=1200
+
+# Parse flags before positional prompt.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wait) WAIT=1; shift ;;
+    --timeout) WATCH_TIMEOUT="$2"; shift 2 ;;
+    --) shift; break ;;
+    -*) echo "unknown flag: $1" >&2; exit 1 ;;
+    *) break ;;
+  esac
+done
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "error: session '$SESSION' not running. run cop-start first." >&2
+  exit 1
+fi
+
+# Grab prompt from arg or stdin.
+if [ $# -gt 0 ]; then
+  PROMPT="$1"
+else
+  PROMPT="$(cat)"
+fi
+
+if [ -z "$PROMPT" ]; then
+  echo "error: empty prompt" >&2
+  exit 1
+fi
+
+# Unique ID for this request.
+ID="$(date +%s)-$$-$RANDOM"
+OUT_FILE="/tmp/cop-out-${ID}.md"
+SENTINEL="COP_DONE_${ID}"
+
+# Wait for TUI to be ready by polling capture-pane until output stabilizes
+# (no changes for 2 consecutive samples). Catches both fresh-start and
+# post-response states.
+wait_ready() {
+  local deadline=$(($(date +%s) + READY_TIMEOUT))
+  local prev=""
+  local curr=""
+  local stable_count=0
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    curr="$(tmux capture-pane -t "$SESSION" -p -S -5 2>/dev/null || true)"
+    if [ -n "$curr" ] && [ "$curr" = "$prev" ]; then
+      stable_count=$((stable_count + 1))
+      if [ "$stable_count" -ge 2 ]; then
+        return 0
+      fi
+    else
+      stable_count=0
+    fi
+    prev="$curr"
+    sleep 0.5
+  done
+  echo "warning: TUI did not stabilize within ${READY_TIMEOUT}s, proceeding anyway" >&2
+  return 0
+}
+
+wait_ready
+
+# Augment prompt with completion protocol.
+FULL_PROMPT="${PROMPT}
+
+---
+When you have completed the task above, write your final answer as Markdown to the file ${OUT_FILE} (overwrite if exists), then print exactly this line on its own: ${SENTINEL}"
+
+# Use paste-buffer (not send-keys "text") to avoid the bubbletea TUI draft-text race.
+BUFFER_NAME="cop-nudge-${ID}"
+tmux set-buffer -b "$BUFFER_NAME" -- "$FULL_PROMPT"
+tmux paste-buffer -b "$BUFFER_NAME" -t "$SESSION" -d
+sleep 0.4
+tmux send-keys -t "$SESSION" Enter
+
+if [ "$WAIT" -eq 1 ]; then
+  exec "$(dirname "$0")/cop-watch" "$ID" --timeout "$WATCH_TIMEOUT"
+else
+  echo "$ID"
+fi

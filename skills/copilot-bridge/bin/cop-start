@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# cop-start — idempotently start a tmux session running GitHub Copilot CLI.
+#
+# Env:
+#   COP_SESSION  tmux session name (default: cop)
+#   COP_MODEL    copilot model (default: gpt-5.3-codex)
+#   COP_DIR      dir to grant copilot file access (default: $PWD)
+#
+# Exits 0 if session is already running or was started successfully.
+
+set -euo pipefail
+
+SESSION="${COP_SESSION:-cop}"
+MODEL="${COP_MODEL:-gpt-5.3-codex}"
+ADD_DIR="${COP_DIR:-$PWD}"
+
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "session '$SESSION' already running"
+  exit 0
+fi
+
+tmux new-session -d -s "$SESSION" -x 200 -y 50 \
+  "copilot --model '$MODEL' --allow-all-tools --allow-all-paths --add-dir '$ADD_DIR' || exec bash"
+
+echo "started session '$SESSION' (model=$MODEL, dir=$ADD_DIR)"
+echo "note: first cop-nudge will wait for TUI to finish loading"

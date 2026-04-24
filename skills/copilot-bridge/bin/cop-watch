@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# cop-watch — wait for a cop-nudge request to complete, print its output.
+#
+# Usage:
+#   cop-watch <id>                      # block until done, print result
+#   cop-watch <id> --timeout 600        # override timeout (default: 1200s)
+#   cop-watch <id> --tail               # also stream TUI activity while waiting
+#
+# Completion signals (first to occur wins):
+#   1. Output file /tmp/cop-out-<id>.md exists AND sentinel line appeared in TUI
+#   2. Output file exists AND has been idle (no size change) for 15s
+#   3. Timeout reached (exit code 2) — also dumps last pane lines to stderr
+
+set -euo pipefail
+
+SESSION="${COP_SESSION:-cop}"
+TIMEOUT=1200
+TAIL=0
+
+if [ $# -lt 1 ]; then
+  echo "usage: cop-watch <id> [--timeout N] [--tail]" >&2
+  exit 1
+fi
+
+ID="$1"
+shift
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --timeout) TIMEOUT="$2"; shift 2 ;;
+    --tail) TAIL=1; shift ;;
+    *) echo "unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
+
+OUT_FILE="/tmp/cop-out-${ID}.md"
+SENTINEL="COP_DONE_${ID}"
+DEADLINE=$(($(date +%s) + TIMEOUT))
+IDLE_THRESHOLD=15  # seconds of file-size stability = "done"
+
+last_size=-1
+last_change=$(date +%s)
+
+while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+  # Check for sentinel in TUI scrollback.
+  if [ -f "$OUT_FILE" ]; then
+    if tmux capture-pane -t "$SESSION" -p -S -200 2>/dev/null | grep -qF "$SENTINEL"; then
+      cat "$OUT_FILE"
+      exit 0
+    fi
+    # Fallback: output file exists and has been idle for IDLE_THRESHOLD seconds.
+    curr_size=$(wc -c <"$OUT_FILE" | tr -d ' ')
+    now=$(date +%s)
+    if [ "$curr_size" != "$last_size" ]; then
+      last_size="$curr_size"
+      last_change="$now"
+    elif [ $((now - last_change)) -ge "$IDLE_THRESHOLD" ] && [ "$curr_size" -gt 0 ]; then
+      echo "# (cop-watch: sentinel not seen, but output file idle ${IDLE_THRESHOLD}s — returning anyway)" >&2
+      cat "$OUT_FILE"
+      exit 0
+    fi
+  fi
+
+  if [ "$TAIL" -eq 1 ]; then
+    tmux capture-pane -t "$SESSION" -p -S -5 2>/dev/null | tail -3 >&2
+  fi
+
+  sleep 2
+done
+
+echo "error: cop-watch timed out after ${TIMEOUT}s waiting for $ID" >&2
+echo "---last 30 lines of pane---" >&2
+tmux capture-pane -t "$SESSION" -p -S -30 2>/dev/null >&2 || echo "(could not capture pane)" >&2
+echo "---" >&2
+if [ -f "$OUT_FILE" ]; then
+  echo "# (partial output file follows)" >&2
+  cat "$OUT_FILE"
+fi
+exit 2

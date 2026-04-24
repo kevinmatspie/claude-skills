@@ -8,8 +8,8 @@
     {
       "name": "spie-claude-skills",
       "source": "./",
-      "description": "SPIE-internal Claude Code skills: mobile app release notes and SPIE CRM lookups via spie-cli.",
-      "version": "0.1.1"
+      "description": "Personal Claude Code skills: SPIE CRM lookups, mobile app release notes, and a GitHub Copilot bridge for delegating work via tmux.",
+      "version": "0.2.0"
     }
   ]
 }

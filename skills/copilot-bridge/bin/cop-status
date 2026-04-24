@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# cop-status — report whether the Copilot tmux session is running and show
+# the last few lines of its pane.
+#
+# Env:
+#   COP_TMUX_SESSION  tmux session name (default: cop)
+
+set -euo pipefail
+
+SESSION="${COP_TMUX_SESSION:-cop}"
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "session '$SESSION': not running"
+  exit 1
+fi
+
+echo "session '$SESSION': running"
+echo "---last 10 lines of pane---"
+tmux capture-pane -t "$SESSION" -p -S -10
