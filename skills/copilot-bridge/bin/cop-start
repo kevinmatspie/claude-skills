@@ -3,7 +3,7 @@
 #
 # Env:
 #   COP_SESSION  tmux session name (default: cop)
-#   COP_MODEL    copilot model (default: gpt-5.3-codex)
+#   COP_MODEL    copilot model (default: gpt-5.4)
 #   COP_DIR      dir to grant copilot file access (default: $PWD)
 #
 # Exits 0 if session is already running or was started successfully.
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SESSION="${COP_SESSION:-cop}"
-MODEL="${COP_MODEL:-gpt-5.3-codex}"
+MODEL="${COP_MODEL:-gpt-5.4}"
 ADD_DIR="${COP_DIR:-$PWD}"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then

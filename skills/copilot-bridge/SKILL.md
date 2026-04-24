@@ -7,7 +7,7 @@ description: Use ONLY when the user explicitly asks to delegate work to GitHub C
 
 ## Overview
 
-Drives a long-lived GitHub Copilot CLI session in a tmux pane via the `cop-*` shell scripts that ship with this skill (in `bin/`). Lets the user offload work to Copilot — typically to use a different model (`gpt-5.3-codex` by default), get a second opinion, or shift cost off the Claude subscription — without leaving this Claude Code session.
+Drives a long-lived GitHub Copilot CLI session in a tmux pane via the `cop-*` shell scripts that ship with this skill (in `bin/`). Lets the user offload work to Copilot — typically to use a different model (`gpt-5.4` by default), get a second opinion, or shift cost off the Claude subscription — without leaving this Claude Code session.
 
 **Audience:** the user explicitly chose to invoke this. They don't need explanations of what Copilot is or pep-talks about delegation. Be terse.
 
@@ -67,7 +67,23 @@ All scripts live in `bin/` inside this skill. Invoke by full path.
 | `cop-status` | Is session running? Last 10 pane lines |
 | `cop-stop` | Kill session, clean up old output files |
 
-Env vars (export before invoking): `COP_SESSION` (default `cop`), `COP_MODEL` (default `gpt-5.3-codex`), `COP_DIR` (default `$PWD`), `COP_READY_TIMEOUT` (default `30`).
+Env vars (export before invoking): `COP_SESSION` (default `cop`), `COP_MODEL` (default `gpt-5.4`), `COP_DIR` (default `$PWD`), `COP_READY_TIMEOUT` (default `30`).
+
+## Model selection
+
+Default is `gpt-5.4` (general flagship) — best for the dominant use cases: code review, second opinions, architectural critique, security analysis, anything that's mostly judgment and synthesis.
+
+Switch to `gpt-5.3-codex` (coding-specialized) when the task is primarily codegen — write/refactor/port a function, generate a fixture, port code between languages. Codex variants tend to be eager to produce code and weaker at "should this even exist?" critique.
+
+Other available Copilot models include `gpt-5.4-mini` (cheaper general), `gpt-5.2-codex`, `claude-sonnet-4.6`, `claude-opus-4.7`, `claude-haiku-4.5`, and `gpt-4.1`. The user may explicitly request one of these — honor it via `COP_MODEL`. Don't switch models on the user's behalf without asking.
+
+To override:
+
+```sh
+COP_MODEL=gpt-5.3-codex bin/cop-start    # for codegen task
+```
+
+If a session is already running on the wrong model, `cop-stop && COP_MODEL=... cop-start` is needed — model is fixed at session-start time.
 
 ## Workflow
 
@@ -157,7 +173,7 @@ For unclear failures, attach to inspect: `tmux attach -t cop` (detach with `C-b 
 
 ## Output handling
 
-When Copilot returns its result, **present it largely as-is**, with a one-line framing ("From Copilot (gpt-5.3-codex):" or similar). Do not re-summarize or paraphrase Copilot's output — the user explicitly chose to ask Copilot, not you. Format adjustments (markdown rendering) are fine; rewriting is not.
+When Copilot returns its result, **present it largely as-is**, with a one-line framing ("From Copilot (gpt-5.4):" or similar). Do not re-summarize or paraphrase Copilot's output — the user explicitly chose to ask Copilot, not you. Format adjustments (markdown rendering) are fine; rewriting is not.
 
 If Copilot's answer seems wrong, flag it briefly ("Note: Copilot suggests X, but your file Y actually does Z — worth double-checking") rather than silently substituting your own answer.
 

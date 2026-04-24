@@ -7,7 +7,7 @@ rather than relying on PATH.
 Purpose: offload work from Claude to Copilot without leaving the Claude
 session or manually copy-pasting between terminals. Uses a separate billing
 bucket (GitHub Copilot subscription), supports model choice
-(`gpt-5.3-codex` by default), and preserves Copilot's conversation context
+(`gpt-5.4` by default), and preserves Copilot's conversation context
 across multiple prompts.
 
 ## Install
@@ -48,7 +48,7 @@ Attach to the live Copilot session interactively: `tmux attach -t cop`
 | Var | Default | Purpose |
 |--|--|--|
 | `COP_SESSION` | `cop` | tmux session name |
-| `COP_MODEL` | `gpt-5.3-codex` | Copilot model |
+| `COP_MODEL` | `gpt-5.4` | Copilot model |
 | `COP_DIR` | `$PWD` | Dir granted to Copilot at start |
 | `COP_READY_TIMEOUT` | `30` | Seconds to wait for TUI to stabilize before nudge |
 
