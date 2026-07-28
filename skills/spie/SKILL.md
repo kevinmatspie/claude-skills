@@ -66,13 +66,35 @@ All commands support these global flags: `--json`, `--verbose` (`-v`), `--env <d
 | A symposium (PW26, EOD26, AS26, …) or sub-symposium (PW26B, AVR26, …) | `spie symposium <query>` | 1 |
 | A person (email, web username, SPIE ID, GUID) | `spie person <query>` | 1 |
 | A registration ("is X registered for Y") | `spie registration <symposium> <person>` | 2 |
+| Registrations at a show (count, list, filter, fuzzy person search) | `spie registration <symposium> [<partial>] [flags]` | 1 |
 | A badge number at a symposium | `spie badge <symposium> <badge>` | 2 |
+| CRM personas for a person at a symposium | `spie persona <symposium> <person>` | 2 |
 | Exhibitors at a show (list or one company) | `spie exhibitor <symposium> [<query>]` | 1–2 |
 | A paper/presentation (13292-11, PC13823-1, title) | `spie paper <query>` | 1 |
 | A conference (list all at symposium, or one by code) | `spie conference <symposium> [<conference>]` | 1–2 |
 | A session (by symposium+conference+number, or event ID) | `spie session <symposium> <conference> <query>` | 3 |
 
-Aliases: `sym`/`symposium`, `contact`/`person`, `reg`/`registration`, `ex`/`exhibitor`, `pres`/`presentation`/`paper`, `conf`/`conference`, `sess`/`session`.
+Aliases: `sym`/`symposium`, `contact`/`person`, `reg`/`registration`, `ex`/`exhibitor`, `pres`/`presentation`/`paper`, `conf`/`conference`, `sess`/`session`. `persona` has no alias.
+
+### Registration list mode (v0.3.0+)
+
+The person argument on `spie registration` is optional. Three modes, decided by what you pass:
+
+- **Exact person** (email, SPIE ID, GUID, or a string that matches a web username) → single-person registrations, the classic shape.
+- **Partial string** (no web-username match) → fuzzy search across web username, badge name, and badge company within that symposium: `spie reg PW26 millisch --json`.
+- **No person** → count breakdown by category abbreviation and status, plus the 15 most recent registrations.
+
+List flags (combine freely with each other and with a partial string):
+
+- `--type XR,AU` — registration category abbreviations, comma-separated. Vocabulary: `XR` exhibitor, `XO` exhibit visitor only, `AU` author, `AT` attendee, `ST` student, `EO` education only, `PCT` program committee, `CH` chair, `NCH` session chair, `IN` instructor, `PS` press.
+- `--status Registered,Cancelled` — friendly names: Registered, Attended, Cancelled, No Show (or `noshow`), Duplicate, Quote.
+- `--limit N` — rows returned, default 15, newest first. `total` in the JSON still reflects ALL matches.
+- `--count` — breakdown only, no rows. Best answer for "how many registered".
+
+Gotchas:
+- Duplicate and Quote registrations are excluded from everything unless explicitly named in `--status`.
+- List flags are **rejected** when the person resolves to an exact contact — don't combine `--type` etc. with an email/SPIE ID.
+- A partial string that happens to be a real web username takes the exact path. If the user clearly wanted a fuzzy search, retry with a longer/shorter fragment that isn't a username.
 
 ### Smart-resolution rules
 
@@ -121,6 +143,10 @@ Non-exhaustive — just enough to know what to extract without a second round tr
 }
 ```
 
+**`spie registration PW26 --json`** (list mode, no person) → `{symposium: {code, name, eventId}, total, byType: [{abbreviation, typeName, count}], byStatus: [{status, count}], recent: []}`. With `--count`, same minus `recent`.
+
+**`spie registration PW26 <partial-or-filters> --json`** (fuzzy/filtered) → `{total, matches: []}` where `matches[]` rows are registration objects plus `webUsername` and `spieId`; `total` counts all matches, `matches` is capped by `--limit`. Zero matches → `{error}`.
+
 **`spie conference PW26 [code] --json`** → array of conferences: `{uniqueIdentifier, eventId, conferenceCode, programDisplayNumber, conferenceNumber, title, symposiumCode, room, startDateTime, endDateTime, callForPapersUrl, sessions[], chairs[]}`. `sessions[]` and `chairs[]` populate under `--verbose`.
 
 **`spie session <sym> <conf> <num> --json`** → array of sessions: `{uniqueIdentifier, eventId, sessionNumber, title, room, startDateTime, endDateTime, duration, conferenceCode, conferenceTitle, conferenceNumber, symposiumCode, sessionId, sessionType, roles[], presentations[], presentationCount}`. `roles[]` and `presentations[]` populate under `--verbose`.
@@ -143,6 +169,11 @@ Field notes for exhibitors:
 | "What sub-events are part of PW26?" | `spie symposium PW26 --verbose --json` |
 | "Who is kevinm@spie.org?" | `spie person kevinm@spie.org --json` |
 | "Is Kevin registered for PW26?" | `spie registration PW26 kevinm@spie.org --json` |
+| "How many people are registered for PW26?" | `spie reg PW26 --count --json` → read `total`, `byType` |
+| "List exhibitor registrations at PW26" | `spie reg PW26 --type XR --json` (raise `--limit` for more rows) |
+| "Who cancelled their PW26 registration?" | `spie reg PW26 --status Cancelled --json` |
+| "Find a PW26 registration for someone named Millischer" | `spie reg PW26 millisch --json` (fuzzy) |
+| "What personas does Kevin have at PW26?" | `spie persona PW26 kevinm@spie.org --json` |
 | "Who has badge 388526 at PW26?" | `spie badge PW26 388526 --json` |
 | "Email for badge 388526 at PW26?" | `spie badge PW26 388526 --verbose --json` |
 | "What conferences are happening at EOD26?" | `spie conference EOD26 --json` |
