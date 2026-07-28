@@ -9,6 +9,7 @@ Personal [Claude Code](https://docs.claude.com/en/docs/claude-code) skills, dist
 | [`spie`](skills/spie/SKILL.md) | Answer natural-language questions about the SPIE CRM by invoking the `spie` CLI (`spie-cli`). Triggers on bare SPIE codes (PW26, EOD26, BO100, 13292-11, …). |
 | [`release-notes`](skills/release-notes/SKILL.md) | Generate mobile app release notes from a Jira fix version and update the Confluence draft page. |
 | [`copilot-bridge`](skills/copilot-bridge/SKILL.md) | Delegate work to GitHub Copilot via a tmux-driven session — code reviews, second opinions, or anything you want offloaded to a different model/subscription. Explicit invocation only ("ask copilot ...", `/copilot-bridge`). |
+| [`symposium-knowledge-docs`](skills/symposium-knowledge-docs/SKILL.md) | Capture a SPIE symposium site's content pages as raw Ingeniux CMS HTML (via `?tfrm=5`), named by page title, into a per-event folder for a chatbot/Copilot knowledge base. Skips dynamic rosters/search widgets and external apps. |
 
 ## Installation
 
