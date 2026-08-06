@@ -16,6 +16,9 @@ The `spie` binary must be on PATH. Verify once per session with `which spie`. If
 ## Core rules
 
 - **Always pass `--json`.** Never parse the formatted/colored table output.
+  The one exception is `--qr` (see below): the scannable code only exists in the
+  terminal rendering, so that flag is run *without* `--json` when the user wants
+  to scan it.
 - **Pass `--verbose` when the user needs detail** that isn't in the default output: chairs for a conference, presentations/roles for a session, authors for a paper, exhibit list for a symposium, contact email for a badge, etc. Default output stays lean.
 - **Don't ask for clarification before trying.** Make the best guess at which command + identifier applies and run it; if the CLI returns an error, iterate. Faster than a clarifying round-trip.
 - **Don't invent flags.** The commands below are the full set. If unsure, run `spie <cmd> --help`.
@@ -68,6 +71,7 @@ All commands support these global flags: `--json`, `--verbose` (`-v`), `--env <d
 | A registration ("is X registered for Y") | `spie registration <symposium> <person>` | 2 |
 | Registrations at a show (count, list, filter, fuzzy person search) | `spie registration <symposium> [<partial>] [flags]` | 1 |
 | A badge number at a symposium | `spie badge <symposium> <badge>` | 2 |
+| A badge QR code (lead retrieval) | `spie badge <symposium> <badge> --qr` | 2 |
 | CRM personas for a person at a symposium | `spie persona <symposium> <person>` | 2 |
 | Exhibitors at a show (list or one company) | `spie exhibitor <symposium> [<query>]` | 1–2 |
 | A paper/presentation (13292-11, PC13823-1, title) | `spie paper <query>` | 1 |
@@ -96,6 +100,59 @@ Gotchas:
 - List flags are **rejected** when the person resolves to an exact contact — don't combine `--type` etc. with an email/SPIE ID.
 - A partial string that happens to be a real web username takes the exact path. If the user clearly wanted a fuzzy search, retry with a longer/shorter fragment that isn't a username.
 
+### Badge QR codes (v0.4.0+)
+
+`--qr` on `badge` or `registration` shows the lead-retrieval QR code that
+exhibitors and staff scan off an attendee's badge. It prints the normal
+registration table first, then the code.
+
+**This is the one place the always-`--json` rule is wrong.** The scannable
+artifact only exists in the terminal rendering:
+
+- **User wants to scan it** (testing lead retrieval, checking a badge at a
+  show) → run **without** `--json` so the code renders. Then tell them it's
+  displayed above your response; don't try to reproduce the code yourself.
+- **User wants the encoded data** ("what does it scan as?", "which SPIE ID is
+  on that badge?") → run with `--json` and read `qr.payload`.
+
+Both commands take it, whichever identifier is handier:
+
+```
+spie badge PW26 388526 --qr            # by badge number
+spie reg PW26 kevinm@spie.org --qr     # by person
+spie badge PW26 388526 --qr --json     # payload only, no art
+spie badge PW26 388526 --qr --qr-invert  # if a scanner rejects the default
+```
+
+JSON shape — the `qr` key is added alongside `registrations`:
+
+```
+qr: { payload, badgeNumber, firstName, lastName, spieId, symposiumCode,
+      generatedOn, annotationId }
+```
+
+`payload` is the raw scanned string, format
+`badgeNumber;firstName;lastName;spieId;symposiumCode`. The PNG bytes are
+deliberately not in the JSON — there's nothing useful to do with a base64 blob.
+
+Gotchas:
+
+- **`--qr` needs a specific person.** It's rejected in `reg` list mode and
+  alongside `--type`/`--status`/`--limit`/`--count`, since there's no single
+  registration to take a code from.
+- **The payload's symposium code is the parent show.** A registration held
+  against a sub-symposium (`PW26B`) still scans as `PW26`. When they disagree,
+  the payload wins — that's what a scanner reads.
+- **Multiple registrations → the newest one's code is shown**, with a note
+  saying which. CRM regenerates the code on every badge reprint, and for a
+  transferable exhibitor badge the *name* can change between reprints, so the
+  newest is the current holder rather than just a duplicate.
+- **Absent QR is normal on older records.** If the CLI reports no QR attached,
+  say so plainly rather than retrying.
+- `badge.pdf` notes also exist in CRM but are **not** exposed by the CLI: dev
+  and test only ever received a one-off bulk run in Jan 2025, so they're
+  missing for essentially every recent show. Don't offer badge PDFs.
+
 ### Smart-resolution rules
 
 - **Symposium code** — 2-4 letters + 2 digits (+ optional 1-letter suffix): `PW26`, `EOD26`, `AS26`, `PW26B`, `AVR26`.
@@ -123,6 +180,7 @@ Use `--verbose` when the user's question requires nested data:
 - **paper** verbose → authors with emails/SPIE IDs
 - **exhibitor** verbose → booths already included, but verbose adds booth-staff detail where present
 - **registration**/**badge** verbose → expanded contact fields (e.g. email)
+- **registration**/**badge** `--qr` → badge QR code; orthogonal to `--verbose`
 
 Only climb to verbose when you actually need those fields; it's significantly more data.
 
@@ -176,6 +234,8 @@ Field notes for exhibitors:
 | "What personas does Kevin have at PW26?" | `spie persona PW26 kevinm@spie.org --json` |
 | "Who has badge 388526 at PW26?" | `spie badge PW26 388526 --json` |
 | "Email for badge 388526 at PW26?" | `spie badge PW26 388526 --verbose --json` |
+| "Show me the QR code for badge 388526" | `spie badge PW26 388526 --qr` (no `--json` — see QR section) |
+| "What does Kevin's PW26 badge scan as?" | `spie reg PW26 kevinm@spie.org --qr --json` → read `qr.payload` |
 | "What conferences are happening at EOD26?" | `spie conference EOD26 --json` |
 | "Who chairs BO100 at PW26?" | `spie conference PW26 BO100 --verbose --json` → read `chairs[]` |
 | "What sessions are in BO100?" | `spie conference PW26 BO100 --verbose --json` → read `sessions[]` |
@@ -195,4 +255,8 @@ Field notes for exhibitors:
 - **When the user asks for a list, render it in your response as a markdown list** built from the JSON you already have. Do not rely on shell-formatted output reaching the user — Claude Code truncates long `Bash` stdout (the user has to hit ctrl-o to expand), so a `jq -r` pretty-print often looks delivered but isn't visible.
 - For long lists, render everything (or the top N with a total count) in the response text; offer to narrow with a follow-up filter.
 - Quote the command you ran so the user can repeat or adjust it.
+- **After rendering a QR (`--qr` without `--json`), just say it's displayed
+  above and give the decoded payload as text.** Never try to redraw the code in
+  your reply — block characters retyped by hand won't scan. If the terminal
+  output was truncated, tell the user to hit ctrl-o rather than re-running.
 - For cross-environment answers, state which environment you queried.
