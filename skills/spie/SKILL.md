@@ -110,8 +110,17 @@ registration table first, then the code.
 artifact only exists in the terminal rendering:
 
 - **User wants to scan it** (testing lead retrieval, checking a badge at a
-  show) → run **without** `--json` so the code renders. Then tell them it's
-  displayed above your response; don't try to reproduce the code yourself.
+  show) → **don't run it yourself.** A QR rendered inside tool output lands in
+  Claude Code's collapsed scrollback, not on the user's screen, so it can't be
+  scanned. Tell the user to run it directly with the `!` prefix:
+
+  ```
+  ! spie reg OP26 jwspie --qr
+  ```
+
+  Look the person up first if you need to confirm the identifier resolves, then
+  hand them the exact command. You can run `--qr --json` yourself alongside it
+  to report the payload as text.
 - **User wants the encoded data** ("what does it scan as?", "which SPIE ID is
   on that badge?") → run with `--json` and read `qr.payload`.
 
@@ -234,7 +243,7 @@ Field notes for exhibitors:
 | "What personas does Kevin have at PW26?" | `spie persona PW26 kevinm@spie.org --json` |
 | "Who has badge 388526 at PW26?" | `spie badge PW26 388526 --json` |
 | "Email for badge 388526 at PW26?" | `spie badge PW26 388526 --verbose --json` |
-| "Show me the QR code for badge 388526" | `spie badge PW26 388526 --qr` (no `--json` — see QR section) |
+| "Show me the QR code for badge 388526" | tell the user to run `! spie badge PW26 388526 --qr` — see QR section |
 | "What does Kevin's PW26 badge scan as?" | `spie reg PW26 kevinm@spie.org --qr --json` → read `qr.payload` |
 | "What conferences are happening at EOD26?" | `spie conference EOD26 --json` |
 | "Who chairs BO100 at PW26?" | `spie conference PW26 BO100 --verbose --json` → read `chairs[]` |
@@ -255,8 +264,8 @@ Field notes for exhibitors:
 - **When the user asks for a list, render it in your response as a markdown list** built from the JSON you already have. Do not rely on shell-formatted output reaching the user — Claude Code truncates long `Bash` stdout (the user has to hit ctrl-o to expand), so a `jq -r` pretty-print often looks delivered but isn't visible.
 - For long lists, render everything (or the top N with a total count) in the response text; offer to narrow with a follow-up filter.
 - Quote the command you ran so the user can repeat or adjust it.
-- **After rendering a QR (`--qr` without `--json`), just say it's displayed
-  above and give the decoded payload as text.** Never try to redraw the code in
-  your reply — block characters retyped by hand won't scan. If the terminal
-  output was truncated, tell the user to hit ctrl-o rather than re-running.
+- **Never try to redraw a QR code in your reply** — block characters retyped
+  by hand won't scan. If the user needs a scannable code, give them the `!`
+  command to run in their own terminal (see the QR section) and report the
+  decoded payload as text alongside it.
 - For cross-environment answers, state which environment you queried.
