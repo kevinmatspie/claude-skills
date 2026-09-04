@@ -1,2 +1,5 @@
-# Local configuration with sensitive Atlassian IDs
+# Local configuration with sensitive Atlassian IDs.
+# The real config now lives at ~/.claude/spie/release-notes.config.local.md
+# (outside the versioned plugin cache). This pattern remains to ignore any
+# legacy in-skill copy. config.example.md is committed as a template.
 config.local.md

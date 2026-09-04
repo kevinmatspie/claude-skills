@@ -127,7 +127,7 @@ Mobile Task version: TBD
 4. **Build new ADF content** - Construct panels with content, add Jira widget at end
 5. **Update the page** - Use `updateConfluencePage` with `contentFormat: "adf"` and `status: "draft"` to keep it as a draft until the user publishes
 
-**Configuration:** Read Atlassian settings from `config.local.md` in this skill directory.
+**Configuration:** Read Atlassian settings from `~/.claude/spie/release-notes.config.local.md` (a version-stable path outside the plugin cache). If that file is absent, fall back in order: (1) values in `~/.claude/CLAUDE.md` for site host and project key, then (2) `context.cloudId` from any live Jira MCP response for the cloud UUID. A missing config file should never block a run. See `config.example.md` in this skill directory for the template.
 
 **Title format:** `YYYY-MM-DD: Release XX.XX` or `YYYY-MM-DD: Release XX.XX.X` for minor releases. The template page usually already has the correct title — pass it through unchanged unless the user asks to change it.
 
@@ -174,7 +174,7 @@ Use these panel types in ADF format:
     "datasource": {
       "id": "d8b75300-dfda-4519-b6cd-e49abbd50401",
       "parameters": {
-        "cloudId": "<ATLASSIAN_CLOUD_UUID from config.local.md>",
+        "cloudId": "<ATLASSIAN_CLOUD_UUID from config>",
         "jql": "fixVersion = \"<version>\" AND project = <JIRA_PROJECT>"
       },
       "views": [{"type": "table", "properties": {"columns": [{"key": "issuetype"}, {"key": "key"}, {"key": "summary"}]}}]
@@ -184,13 +184,13 @@ Use these panel types in ADF format:
 }
 ```
 
-Replace `<version>` with the actual fix version (e.g., "26.01"). URL-encode the version in the `url` field. Get other values from `config.local.md`.
+Replace `<version>` with the actual fix version (e.g., "26.01"). URL-encode the version in the `url` field. Get other values from the config (see **Configuration** above).
 
 ## Quick Reference
 
 | Item | Source |
 |------|--------|
-| Atlassian settings | `config.local.md` (not committed to git) |
+| Atlassian settings | `~/.claude/spie/release-notes.config.local.md` (not committed; see `config.example.md`) |
 | Version Format | XX.XX (year.month) or XX.XX.X (minor) |
 
 ## Common Mistakes
@@ -204,3 +204,4 @@ Replace `<version>` with the actual fix version (e.g., "26.01"). URL-encode the 
 | Missing CVE check | Always check descriptions for CVE mentions |
 | Creating duplicate page | Ask the user for the draft page ID/URL before doing anything else |
 | Searching for the draft | Don't. `searchConfluenceUsingCql` and descendants listing don't return `status=draft` pages. Ask the user instead. |
+| Blocking on missing config | Don't. If `~/.claude/spie/release-notes.config.local.md` is absent, fall back to `~/.claude/CLAUDE.md` and to `context.cloudId` from a live Jira call. |
