@@ -206,9 +206,11 @@ Non-exhaustive — just enough to know what to extract without a second round tr
 {
   symposium: { code, name, eventId },
   contact:   { firstName, lastName, spieId },
-  registrations: [ { uniqueIdentifier, symposiumCode, badgeFirstName, badgeLastName, badgeCompany, badgeNumber, category, technicalPass, registrationType, registeredOn, badgeName, status, confirmationLevel } ]
+  registrations: [ { uniqueIdentifier, symposiumCode, badgeFirstName, badgeLastName, badgeCompany, badgeNumber, category, technicalPass, exhibitRep, exhibitorSpieId, exhibitorName, registrationType, registeredOn, badgeName, status, confirmationLevel } ]
 }
 ```
+
+`exhibitRep` is the CRM exhibit-rep flag; `exhibitorSpieId`/`exhibitorName` are the exhibitor it links to (omitted when none). These need spie-cli 0.5.0+.
 
 **`spie registration PW26 --json`** (list mode, no person) → `{symposium: {code, name, eventId}, total, byType: [{abbreviation, typeName, count}], byStatus: [{status, count}], recent: []}`. With `--count`, same minus `recent`.
 
@@ -220,13 +222,23 @@ Non-exhaustive — just enough to know what to extract without a second round tr
 
 **`spie paper <query> --json`** → array of papers: `{uniqueIdentifier, paperNumber, trackingNumber, eventId, title, conferenceCode, conferenceTitle, symposiumCode, startDateTime, duration, primaryAuthor, contactAuthor, abstractSubmissionDate, publicationDate, status, presentationType}`. Title searches return many rows; narrow by conference or symposium when possible.
 
-**`spie exhibitor <sym> [<query>] --json`** → array of exhibitors: `{uniqueIdentifier, spieExhibitorId, companyName, accountName, exhibitionName, symposiumCode, cancelled, confirmed, primaryContact*, website, city, country, phone, technicalPasses, displayName, location, exhibitType, confirmationLevel, booths[]}`. Omit the query to list every exhibitor at the show (large).
+**`spie exhibitor <sym> [<query>] --json`** → array of exhibitors: `{uniqueIdentifier, spieExhibitorId, companyName, accountName, exhibitionName, symposiumCode, cancelled, confirmed, primaryContact*, website, city, country, phone, technicalPasses, displayName, location, exhibitType, confirmationLevel, qualifierType, booths[]}`. Omit the query to list every exhibitor at the show (large).
 
 Field notes for exhibitors:
 - `cancelled: true` means the booking was pulled — exclude from "active exhibitors" counts.
 - Don't volunteer `confirmed` in summaries unless the user specifically asks about it.
 - `confirmationLevel` (string) is the human-readable status; `"Confirmed"` is typical.
 - `booths[]` is present for assigned exhibitors; empty for pending.
+- `qualifierType` (spie-cli 0.5.0+) decides which lead-retrieval questions the exhibitor's reps get in the mobile apps: `Standard`, `Custom`, `No Qualifiers`, `API`, or empty (unset; the feed falls back to Standard). The apps only act on Standard and Custom.
+
+### Lead-retrieval triage
+
+For "an exhibitor's rep isn't seeing leads / qualifiers" questions:
+
+1. `spie reg <sym> <person> --json`: check `exhibitRep` and `exhibitorSpieId`, **not just `typeAbbreviation`**. The MobileAPI appends `XR`/`XRT` whenever `exhibitRep` is true, so an `AT` registration with `exhibitRep: true` *is* an exhibitor in the apps. Don't conclude "no exhibitor role" from the category.
+2. `spie ex <sym> <exhibitorSpieId> --json`: check `qualifierType`. Anything other than Standard/Custom explains missing or generic questions.
+3. Half-linked states are the usual culprits: `exhibitRep: true` with no `exhibitorSpieId`, or an exhibitor linked with `exhibitRep: false`. `spie --verbose reg <sym> ...` shows these in a "Rep For" column as `?` and `<id> (not rep)`.
+4. Booth staff for an exhibitor: `spie --verbose ex <sym> <exhibitorSpieId>`.
 
 ## Common question patterns
 
@@ -237,7 +249,7 @@ Field notes for exhibitors:
 | "Who is kevinm@spie.org?" | `spie person kevinm@spie.org --json` |
 | "Is Kevin registered for PW26?" | `spie registration PW26 kevinm@spie.org --json` |
 | "How many people are registered for PW26?" | `spie reg PW26 --count --json` → read `total`, `byType` |
-| "List exhibitor registrations at PW26" | `spie reg PW26 --type XR --json` (raise `--limit` for more rows) |
+| "List exhibitor registrations at PW26" | `spie reg PW26 --type XR --json` (raise `--limit` for more rows). `--type` filters on category, so it misses exhibit reps registered under another category (e.g. `AT` with `exhibitRep: true`); say so if completeness matters |
 | "Who cancelled their PW26 registration?" | `spie reg PW26 --status Cancelled --json` |
 | "Find a PW26 registration for someone named Millischer" | `spie reg PW26 millisch --json` (fuzzy) |
 | "What personas does Kevin have at PW26?" | `spie persona PW26 kevinm@spie.org --json` |
