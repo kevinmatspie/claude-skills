@@ -11,10 +11,10 @@ Answer natural-language questions about the SPIE CRM by invoking the `spie` CLI 
 
 ## Prerequisite
 
-The `spie` binary must be on PATH, at **0.5.0 or newer**. Check once per session with `spie --version` (prints e.g. `0.5.0+<sha>`; the version is the part before `+`).
+The `spie` binary must be on PATH, at **0.5.1 or newer**. Check once per session with `spie --version` (prints e.g. `0.5.0+<sha>`; the version is the part before `+`).
 
 - **Not found:** tell the user the skill requires `spie-cli` and stop. Point them to the install steps below.
-- **Older than 0.5.0:** ordinary lookups still work, so carry on, but tell the user once that their CLI is out of date and give the update command. Fields added in 0.5.0 (`exhibitRep`, `exhibitorSpieId`, `exhibitorName`, `qualifierType`) will simply be missing from the output. Treat a missing field as **unknown**, never as `false` or "none", and don't draw lead-retrieval triage conclusions from it.
+- **Older than 0.5.1:** ordinary lookups still work, so carry on, but tell the user once that their CLI is out of date and give the update command. Newer fields will simply be missing from the output: `exhibitRep`, `exhibitorSpieId`, `exhibitorName`, `qualifierType` (0.5.0) and the person communication preferences (0.5.1). Treat a missing field as **unknown**, never as `false` or "none", and don't draw lead-retrieval triage conclusions from it.
 
 Install or update (macOS, Apple Silicon; Windows steps are in the spie-cli README):
 
@@ -211,7 +211,12 @@ Non-exhaustive — just enough to know what to extract without a second round tr
 
 **`spie symposium PW26 --json`** → object: `{uniqueIdentifier, eventId, code, name, city, state, country, venue, startDate, endDate, webStatus, timezone, location, subSymposiums[], exhibitions[]}`. `subSymposiums[]` is populated only in `--verbose`.
 
-**`spie person kevinm@spie.org --json`** → object: `{uniqueIdentifier, spieId, email, webUsername, firstName, lastName, company, jobTitle, phone, gender, profile}`.
+**`spie person kevinm@spie.org --json`** → object: `{uniqueIdentifier, spieId, email, webUsername, firstName, lastName, company, jobTitle, phone, gender, profile, sendNewsEmails, doNotSendUnrequestedEmail, unrequestedEmailOptInDate?, unrequestedEmailOptOutDate?}`.
+
+Field notes for people (communication preferences, spie-cli 0.5.1+; always in JSON, no `--verbose` needed):
+- `sendNewsEmails`: true when the contact has an active **MBRNEWS** subscription. The CRM form's own "Send News Emails" checkbox is a different, effectively unused column, so if a user says "the form shows No", explain that the subscription is the real signal.
+- `doNotSendUnrequestedEmail`: the CRM's "Do not send unrequested email" (`DoNotBulkEMail`). `true` means opted **out** of marketing email; transactional mail still goes out. `null` means never set.
+- `unrequestedEmailOptInDate` / `unrequestedEmailOptOutDate`: when they opted in or out; omitted when unset. A handful of records carry future-dated opt-ins (bad source data), so report the date as stored and don't infer from it.
 
 **`spie registration PW26 <person> --json`** and **`spie badge PW26 388526 --json`** → same shape:
 ```
@@ -265,6 +270,7 @@ For "an exhibitor's rep isn't seeing leads / qualifiers" questions:
 | "Who cancelled their PW26 registration?" | `spie reg PW26 --status Cancelled --json` |
 | "Find a PW26 registration for someone named Millischer" | `spie reg PW26 millisch --json` (fuzzy) |
 | "What personas does Kevin have at PW26?" | `spie persona PW26 kevinm@spie.org --json` |
+| "Is 4284005 opted in to email / subscribed to news?" | `spie person 4284005 --json` → `doNotSendUnrequestedEmail`, `sendNewsEmails`, and the opt-in/opt-out dates |
 | "Who has badge 388526 at PW26?" | `spie badge PW26 388526 --json` |
 | "Email for badge 388526 at PW26?" | `spie badge PW26 388526 --verbose --json` |
 | "Show me the QR code for badge 388526" | tell the user to run `! spie badge PW26 388526 --qr` — see QR section |

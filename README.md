@@ -25,7 +25,7 @@ Then **turn on auto-update**: run `/plugin`, open the **Marketplaces** tab, sele
 
 Per-skill prerequisites:
 
-- `spie` — requires the `spie` CLI (0.5.0 or newer) on PATH. The CLI is installed separately from this plugin, and updating the plugin does not update it; see the [spie-cli releases](https://github.com/spie-dev/spie-cli/releases) for binaries.
+- `spie` — requires the `spie` CLI (0.5.1 or newer) on PATH. The CLI is installed separately from this plugin, and updating the plugin does not update it; see the [spie-cli releases](https://github.com/spie-dev/spie-cli/releases) for binaries.
 - `release-notes` — requires access to the SPIE Atlassian Cloud.
 - `copilot-bridge` — requires `tmux` and an authenticated GitHub `copilot` CLI on PATH.
 
