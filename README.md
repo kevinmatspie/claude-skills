@@ -21,19 +21,29 @@ From any Claude Code session:
 /reload-plugins
 ```
 
+Then **turn on auto-update**: run `/plugin`, open the **Marketplaces** tab, select `spie`, and choose **Enable auto-update**. Marketplaces added from a GitHub repo have auto-update **off by default**, so without this step you stay on whatever version you first installed (one machine was still running 0.1.0 over a month after 0.4 shipped). With it on, Claude Code checks for updates at the start of each session; a session that's already running keeps its current version until `/reload-plugins`.
+
 Per-skill prerequisites:
 
-- `spie` — requires the `spie` CLI on PATH.
+- `spie` — requires the `spie` CLI (0.5.0 or newer) on PATH. The CLI is installed separately from this plugin, and updating the plugin does not update it; see the [spie-cli releases](https://github.com/spie-dev/spie-cli/releases) for binaries.
 - `release-notes` — requires access to the SPIE Atlassian Cloud.
 - `copilot-bridge` — requires `tmux` and an authenticated GitHub `copilot` CLI on PATH.
 
 ## Updates
 
-Bump the `version` in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, tag the commit (`git tag -a v0.2.0 -m "…"`), and push. Users pull updates with:
+### Getting updates
+
+With auto-update on (see Installation), updates arrive on their own at session start. To update by hand:
 
 ```
+/plugin marketplace update spie
 /plugin update spie-claude-skills
+/reload-plugins
 ```
+
+### Releasing
+
+Bump the `version` in **both** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, tag the commit (`git tag -a v0.2.0 -m "…"`), and push `main` and the tag. The update check compares against `marketplace.json`, so bumping only `plugin.json` ships the content without anyone being notified (this happened with 0.5.0). Check that the two versions match before tagging.
 
 ## Layout
 

@@ -11,7 +11,19 @@ Answer natural-language questions about the SPIE CRM by invoking the `spie` CLI 
 
 ## Prerequisite
 
-The `spie` binary must be on PATH. Verify once per session with `which spie`. If missing, tell the user the skill requires `spie-cli` to be installed and stop.
+The `spie` binary must be on PATH, at **0.5.0 or newer**. Check once per session with `spie --version` (prints e.g. `0.5.0+<sha>`; the version is the part before `+`).
+
+- **Not found:** tell the user the skill requires `spie-cli` and stop. Point them to the install steps below.
+- **Older than 0.5.0:** ordinary lookups still work, so carry on, but tell the user once that their CLI is out of date and give the update command. Fields added in 0.5.0 (`exhibitRep`, `exhibitorSpieId`, `exhibitorName`, `qualifierType`) will simply be missing from the output. Treat a missing field as **unknown**, never as `false` or "none", and don't draw lead-retrieval triage conclusions from it.
+
+Install or update (macOS, Apple Silicon; Windows steps are in the spie-cli README):
+
+```bash
+cd "$(mktemp -d)" && gh release download --repo spie-dev/spie-cli --pattern '*osx-arm64.tar.gz' \
+  && tar -xzf spie-*-osx-arm64.tar.gz && mkdir -p ~/.local/bin && mv spie ~/.local/bin/
+```
+
+The plugin update does **not** update the CLI; they're installed separately.
 
 ## Core rules
 
