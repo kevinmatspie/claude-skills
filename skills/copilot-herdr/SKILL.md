@@ -29,6 +29,8 @@ The value of a second reviewer is a different vendor's blind spots, so never pic
 | Quick back-and-forth | GPT-6 Sol | `gpt-6-sol` |
 | Tiebreaker when Claude and GPT disagree | Grok or Gemini | probe the slug first (below) |
 
+For scale: a two-round review with GPT-6 Astra used 2 premium requests and about 241 AI credits (the status bar shows the running "AIC used").
+
 Honor a model the user names. The `/model` picker shows display names and premium-request multipliers, not slugs. Probe a guessed slug from a scratch directory, which costs one request:
 
 ```sh
@@ -55,6 +57,7 @@ SECRET_VARS=$(env | cut -d= -f1 | grep -E 'TOKEN|SECRET|PASSW|API_?KEY|ACCESS_KE
 
 herdr agent start cop-review --kind copilot --pane "$PANE" -- \
   --model gpt-6-astra \
+  --mode interactive \
   --disable-builtin-mcps \
   --secret-env-vars="$SECRET_VARS" \
   --deny-tool write \
@@ -64,16 +67,20 @@ herdr agent start cop-review --kind copilot --pane "$PANE" -- \
   --deny-tool 'shell(gh:*)' --deny-tool 'shell(rm:*)' --deny-tool 'shell(sudo:*)' \
   --deny-tool 'shell(ssh:*)' --deny-tool 'shell(curl:*)' --deny-tool 'shell(ksm:*)' \
   --deny-tool 'shell(spie-sql:*)' --deny-tool 'shell(spie-graylog:*)' \
-  --allow-tool 'shell(git diff)' --allow-tool 'shell(git log)' --allow-tool 'shell(git show)'
+  --allow-tool 'shell(git diff)' --allow-tool 'shell(git log)' --allow-tool 'shell(git show)' \
+  --allow-tool 'shell(nl)'
 ```
 
 Why these flags:
 - Copilot runs commands it judges read-only (`printenv`, `ls`) without asking, so the allow-list is not the only gate. The deny rules block risky commands outright, even ones Copilot rates as safe.
 - `--deny-tool write` blocks file edits. Shell redirection still needs approval, which surfaces as `blocked`.
 - `--disable-builtin-mcps` turns off the GitHub MCP server. Its tools aren't `shell(...)`, so the `gh` deny doesn't cover them, and they include writes such as comments and issues. A review of local code needs no GitHub access. Drop the flag only when the user asks Copilot to look at a PR or issue.
+- `--mode interactive` sets the starting mode, so every approval is asked rather than auto-denied. It doesn't stop the mode being switched later (the mode-cycle key or `/autopilot`), so "Prompt and wait" handles the autopilot dialog.
+- `sed` stays off the allow-list because allowing it also allows `sed -i`, which gets around `--deny-tool write`. The brief asks Copilot to read files with its viewer, which avoids most `sed` prompts. `nl` is allowed because it can't write.
+- A "don't ask again" answer to an approval dialog is saved per repo in `~/.copilot/permissions-config.json` and applies to later sessions there. That explains a command running without a prompt.
 - Never add `--allow-all`, `--allow-all-tools` or `--yolo`.
 
-Use a unique name per session (`cop-review`, `cop-design`, …). `agent start` returns once Copilot is ready for input.
+Use a unique name per session (`cop-review`, `cop-design`, …). `agent start` returns once Herdr detects Copilot. Right after start, don't trust a `blocked` status: the first run in a repo shows Copilot's folder-trust dialog, and Herdr can also report `blocked` while Copilot sits idle at its prompt. Read the pane (`herdr agent read cop-review --source visible --lines 30`) before telling the user about a dialog. An idle-but-`blocked` session takes a prompt normally.
 
 ## Brief
 
@@ -83,6 +90,7 @@ For a **review**:
 
 ```
 You are reviewing, not editing: do not modify anything.
+Read files with your file viewer, not shell commands.
 
 Task: review <what> for correctness bugs and risky behaviour.
 Scope: `git diff main...HEAD` (or: these files: …)
@@ -108,7 +116,8 @@ Keep each Herdr timeout under 9 minutes and give the Bash call its 10-minute max
 
 Check `.result.agent.agent_status`:
 - `idle` or `done`: read the answer.
-- `blocked`: Copilot is at an approval dialog. Read it with `herdr agent read cop-review --source visible --lines 30` and show the user the exact command. **Never approve it yourself.** If the user declines, send `herdr agent send-keys cop-review esc`. Herdr can keep reporting `blocked` briefly after that, so confirm with a read.
+- `blocked`: Copilot is at an approval dialog. Read it with `herdr agent read cop-review --source visible --lines 30` and show the user the exact command. **Never approve it yourself.** If the user declines, read the pane again first: they may already have answered in the pane, and an Esc sent then lands on a working Copilot. If the dialog is still there, send `herdr agent send-keys cop-review esc`. Herdr can keep reporting `blocked` briefly after that, so confirm with a read.
+  - **"Enable autopilot mode"** means the session was switched to autopilot, and this dialog appears when a prompt is sent. Its default option, "Enable all permissions", lifts every approval gate except the deny rules. Never choose it or press Enter here. Show the user the dialog and let them answer it. In autopilot, commands off the allow-list are refused without asking, so expect Copilot to report tools it couldn't run.
 - `agent_prompt_stalled`: common with long briefs, because Copilot can take more than Herdr's 5 s window to start. **Don't resend.** Read the pane. If the brief is in the conversation, Copilot has it, so wait for it to start and then to finish:
   ```sh
   herdr agent wait cop-review --until working --until blocked --timeout 120000
