@@ -1,13 +1,13 @@
 ---
 name: copilot-herdr
-description: Use ONLY when the user explicitly asks for GitHub Copilot's input AND this session runs inside Herdr (HERDR_ENV=1) — phrases like "ask copilot", "have copilot review X", "get copilot's eyes on this", "second opinion from copilot", "is copilot done?", "stop copilot", or /copilot-herdr. Starts GitHub Copilot CLI as a read-only reviewer in a sibling Herdr pane, briefs it, and brings its answer back. Inside Herdr this takes precedence over copilot-bridge. Never use proactively.
+description: Use ONLY when the user explicitly asks for GitHub Copilot's input AND this session runs inside Herdr (HERDR_ENV=1) — phrases like "ask copilot", "have copilot review X", "get copilot's eyes on this", "second opinion from copilot", "is copilot done?", "stop copilot", or /copilot-herdr. Starts GitHub Copilot CLI as a read-only reviewer in a new Herdr tab, briefs it, and brings its answer back. Inside Herdr this takes precedence over copilot-bridge. Never use proactively.
 ---
 
 # Copilot via Herdr
 
 ## Overview
 
-Runs GitHub Copilot CLI in a pane next to this one, through the `herdr` CLI, so a model from a different vendor can review work or critique a design. The user can watch the pane and step in. Herdr handles the terminal mechanics: readiness, prompt delivery, and the `idle`/`working`/`blocked` lifecycle.
+Runs GitHub Copilot CLI in its own Herdr tab, through the `herdr` CLI, so a model from a different vendor can review work or critique a design. The user can switch to the tab to watch and step in. Herdr handles the terminal mechanics: readiness, prompt delivery, and the `idle`/`working`/`blocked` lifecycle.
 
 **Explicit invocation only.** Do not start Copilot, or suggest starting it, unless the user asks.
 
@@ -47,10 +47,10 @@ An unknown slug fails with `Model "<slug>" from --model flag is not available.` 
 
 ## Start
 
-Pick the split direction from `herdr pane layout --pane "$HERDR_PANE_ID"`: split `right` when the pane is wide, `down` when it is narrow. Keep focus here.
+Open a new tab in this workspace, labeled with the agent name, and keep focus here. The tab's status indicator shows the user when Copilot is working or blocked.
 
 ```sh
-PANE=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq -r .result.pane.pane_id)
+PANE=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --label cop-review --cwd "$PWD" --no-focus | jq -r .result.root_pane.pane_id)
 
 # Hide tokens from Copilot's shell and MCP servers (Copilot's own sign-in is unaffected).
 SECRET_VARS=$(env | cut -d= -f1 | grep -E 'TOKEN|SECRET|PASSW|API_?KEY|ACCESS_KEY|CREDENTIAL|^KSM_' | paste -sd, -)
@@ -80,7 +80,7 @@ Why these flags:
 - A "don't ask again" answer to an approval dialog is saved per repo in `~/.copilot/permissions-config.json` and applies to later sessions there. That explains a command running without a prompt.
 - Never add `--allow-all`, `--allow-all-tools` or `--yolo`.
 
-Use a unique name per session (`cop-review`, `cop-design`, …). `agent start` returns once Herdr detects Copilot. Right after start, don't trust a `blocked` status: the first run in a repo shows Copilot's folder-trust dialog, and Herdr can also report `blocked` while Copilot sits idle at its prompt. Read the pane (`herdr agent read cop-review --source visible --lines 30`) before telling the user about a dialog. An idle-but-`blocked` session takes a prompt normally.
+Use a unique name per session (`cop-review`, `cop-design`, …), and the same name for the tab label. `agent start` returns once Herdr detects Copilot. Right after start, don't trust a `blocked` status: the first run in a repo shows Copilot's folder-trust dialog, and Herdr can also report `blocked` while Copilot sits idle at its prompt. Read the pane (`herdr agent read cop-review --source visible --lines 30`) before telling the user about a dialog. An idle-but-`blocked` session takes a prompt normally.
 
 ## Brief
 
@@ -142,7 +142,7 @@ The read covers the whole session, and Copilot does not use the alternate screen
 
 ## Cleanup
 
-Ask before closing. Then close with `herdr pane close <pane>`, and only for panes you started. Closing the pane is a clean shutdown: Copilot records `session.shutdown` and keeps the whole conversation, the same as `/exit`. `/exit` also misfires when Copilot is mid-answer or at an approval prompt, so don't send it first. To come back to a closed review, get the session ID (the newest directory in `~/.copilot/session-state/`) and start Copilot in a new pane with the same flags plus `--resume=<id>`. If the user has clearly moved on, mention the running session once.
+Ask before closing. Then close with `herdr pane close <pane>`, and only for panes you started. The pane is the tab's only one, so this removes the tab too; if the user split the tab, their panes stay. Closing the pane is a clean shutdown: Copilot records `session.shutdown` and keeps the whole conversation, the same as `/exit`. `/exit` also misfires when Copilot is mid-answer or at an approval prompt, so don't send it first. To come back to a closed review, get the session ID (the newest directory in `~/.copilot/session-state/`) and start Copilot in a new tab (as in Start) with the same flags plus `--resume=<id>`. If the user has clearly moved on, mention the running session once.
 
 ## Code-writing work
 

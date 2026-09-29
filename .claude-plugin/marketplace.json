@@ -9,7 +9,7 @@
       "name": "spie-claude-skills",
       "source": "./",
       "description": "Personal Claude Code skills: SPIE CRM lookups, mobile app release notes, GitHub Copilot as a second reviewer via Herdr or tmux, and a symposium-site capture tool for chatbot knowledge bases.",
-      "version": "0.7.1"
+      "version": "0.7.2"
     }
   ]
 }
